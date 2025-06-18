@@ -18,7 +18,7 @@ jobs:
         run: npm install
 
       - name: Install required packages for Puppeteer
-        run: sudo apt-get update && sudo apt-get install -y libnss3 libxss1 libasound2
+        run: sudo apt-get update && sudo apt-get install -y libnss3 libxss1 libasound2t64
 
       - name: Run script
         env:
