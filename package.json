@@ -14,6 +14,6 @@
     "axios": "^1.10.0",
     "json2csv": "^6.0.0-alpha.2",
     "pdf-parse": "^1.1.1",
-    "puppeteer-core": "^24.10.1"
+    "puppeteer": "^24.10.1"
   }
 }

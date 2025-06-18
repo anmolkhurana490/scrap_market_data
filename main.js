@@ -1,20 +1,14 @@
-import puppeteer from "puppeteer-core";
+import puppeteer from "puppeteer";
 import axios from "axios";
 import PdfParse from "pdf-parse";
 import fs from "fs";
 import { Parser } from "json2csv";
 
 const CONFIG = {
-    groqApiKey: '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',
     paths: {
         screener: 'https://www.screener.in/concalls/',
         login: 'https://www.screener.in/login/',
         outputFile: 'output.csv',
-        chromeExecutable: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-    },
-    credentials: {
-        username: 'gitneer@gmail.com ',
-        password: 'Neeraj123#'
     },
     limits: {
         content: 10000,
@@ -25,7 +19,6 @@ const CONFIG = {
 
 const extractCompanyData = async () => {
     const browser = await puppeteer.launch({
-        executablePath: CONFIG.paths.chromeExecutable,
         headless: true,
     });
 
@@ -34,8 +27,8 @@ const extractCompanyData = async () => {
     await page.goto(CONFIG.paths.login)
     await page.setViewport({ width: 1080, height: 1024 });
 
-    await page.type('#id_username', CONFIG.credentials.username);
-    await page.type('#id_password', CONFIG.credentials.password);
+    await page.type('#id_username', process.env.SCREENER_USERNAME);
+    await page.type('#id_password', process.env.SCREENER_PASSWORD);
     await page.click('button[type="submit"]', { delay: 1000 });
 
     // Wait and click on first result.
@@ -96,7 +89,7 @@ async function analyzeWithGroq(content) {
                 response_format: { type: 'json_object' }
             },
             {
-                headers: { Authorization: `Bearer ${CONFIG.groqApiKey}` },
+                headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
                 timeout: 30000
             }
         );
