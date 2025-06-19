@@ -42,14 +42,21 @@ const extractPdf = async (link, page) => {
     try {
         await page.goto(link, { waitUntil: 'networkidle2', timeout: 60000 });
 
-        const buffer = await page.evaluate(() =>
-            fetch(window.location.href)
-                .then(res => res.arrayBuffer())
-                .then(buf => Array.from(new Uint8Array(buf)))
-        );
-        const data = Buffer.from(buffer);
+        const result = await page.evaluate(() => {
+            return fetch(window.location.href)
+                .then(res => res.blob())
+                .then(async blob => {
+                    const type = blob.type;
+                    const arrayBuffer = await blob.arrayBuffer();
+                    return {
+                        type,
+                        buffer: Array.from(new Uint8Array(arrayBuffer))
+                    };
+                });
+        });
+        const data = Buffer.from(result.buffer);
 
-        if (data) {
+        if (data && result.type === 'application/pdf') {
             const pdf = await PdfParse(data);
             return pdf.text;
         }
