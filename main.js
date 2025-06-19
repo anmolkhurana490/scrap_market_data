@@ -55,6 +55,7 @@ const extractPdf = async (link, page) => {
                 });
         });
         const data = Buffer.from(result.buffer);
+        console.log(result.type)
 
         if (data && result.type === 'application/pdf') {
             const pdf = await PdfParse(data);
@@ -64,7 +65,6 @@ const extractPdf = async (link, page) => {
             console.log('No data found in PDF', data);
             return '';
         }
-        console.log(result.type)
     } catch (error) {
         console.error(`Error fetching PDF from ${link}:`, error);
         return '';
