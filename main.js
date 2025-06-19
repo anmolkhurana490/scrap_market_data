@@ -69,7 +69,7 @@ const extractPdf = async (link) => {
         if (error.response) {
             console.error(`Status: ${error.response.status}`);
             console.error(`Headers:`, error.response.headers);
-            console.error(`Body:`, error.response.data?.toString()?.slice(0, 200));
+            console.error(`Body:`, error.response.data?.toString()?.slice(0, 400));
         }
         return '';
     }
