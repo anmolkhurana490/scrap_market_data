@@ -42,30 +42,29 @@ const extractCompanyData = async (browser) => {
 
 const extractPdf = async (link, browser) => {
     const page = await browser.newPage();
-    let pdfBuffer = null;
-
-    page.on('response', async (response) => {
-        const url = response.url();
-        const ct = response.headers()['content-type'] || '';
-        if (url === link && ct.includes('application/pdf')) {
-            pdfBuffer = await response.buffer();
-            fs.writeFileSync(CONFIG.paths.tempPdf, pdfBuffer); // for inspection
-        }
-    });
-
-    await page.goto(link, { waitUntil: 'networkidle2', timeout: 60000 });
-    await page.close();
-
-    if (!pdfBuffer) {
-        console.error('PDF was not captured, likely blocked.');
-        return '';
-    }
 
     try {
-        const pdf = await PdfParse(pdfBuffer);
-        return pdf.text;
-    } catch (err) {
-        console.error('pdf-parse error:', err.message);
+        await page.goto(link, { waitUntil: 'networkidle2', timeout: 60000 });
+
+        const buffer = await page.evaluate(() =>
+            fetch(window.location.href)
+                .then(res => res.arrayBuffer())
+                .then(buf => Array.from(new Uint8Array(buf)))
+        );
+
+        fs.writeFileSync(CONFIG.paths.tempPdf, Buffer.from(buffer));
+        const data = fs.readFileSync(CONFIG.paths.tempPdf);
+
+        if (data) {
+            const pdf = await PdfParse(data);
+            return pdf.text;
+        }
+        else {
+            console.log('No data found in PDF', data);
+            return '';
+        }
+    } catch (error) {
+        console.error(`Error fetching PDF from ${link}:`, error.message);
         return '';
     }
 };
