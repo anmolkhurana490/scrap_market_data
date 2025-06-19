@@ -52,7 +52,7 @@ const extractPdf = async (link, page) => {
         fs.writeFileSync(CONFIG.paths.tempPdf, Buffer.from(buffer));
         const data = fs.readFileSync(CONFIG.paths.tempPdf);
 
-        if (data) {
+        if (data && result.type === 'application/pdf') {
             const pdf = await PdfParse(data);
             return pdf.text;
         }
@@ -61,7 +61,7 @@ const extractPdf = async (link, page) => {
             return '';
         }
     } catch (error) {
-        console.error(`Error fetching PDF from ${link}:`, error.message);
+        console.error(`Error fetching PDF from ${link}:`, error);
         return '';
     }
 };
