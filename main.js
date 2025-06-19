@@ -52,7 +52,7 @@ const extractPdf = async (link, page) => {
         fs.writeFileSync(CONFIG.paths.tempPdf, Buffer.from(buffer));
         const data = fs.readFileSync(CONFIG.paths.tempPdf);
 
-        if (data && result.type === 'application/pdf') {
+        if (data) {
             const pdf = await PdfParse(data);
             return pdf.text;
         }
