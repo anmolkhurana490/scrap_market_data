@@ -48,9 +48,12 @@ const extractPdf = async (link, page) => {
                 .then(res => res.arrayBuffer())
                 .then(buf => Array.from(new Uint8Array(buf)))
         );
+        console.log("line51 ran");
 
         fs.writeFileSync(CONFIG.paths.tempPdf, Buffer.from(buffer));
+        console.log("line54 ran");
         const data = fs.readFileSync(CONFIG.paths.tempPdf);
+        console.log("line56 ran");
 
         if (data) {
             const pdf = await PdfParse(data);
