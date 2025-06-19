@@ -49,7 +49,7 @@ const extractPdf = async (link, browser) => {
         const ct = response.headers()['content-type'] || '';
         if (url === link && ct.includes('application/pdf')) {
             pdfBuffer = await response.buffer();
-            fs.writeFileSync('temp.pdf', pdfBuffer); // for inspection
+            fs.writeFileSync(CONFIG.paths.tempPdf, pdfBuffer); // for inspection
         }
     });
 
