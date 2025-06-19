@@ -67,6 +67,11 @@ const extractPdf = async (link, browser) => {
         }
     } catch (error) {
         console.error(`Error fetching PDF from ${link}:`, error.message);
+        if (error.response) {
+            console.error(`Status: ${error.response.status}`);
+            console.error(`Headers:`, error.response.headers);
+            console.error(`Body:`, error.response.data?.toString()?.slice(0, 400));
+        }
         return '';
     }
 };
