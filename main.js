@@ -14,7 +14,8 @@ const CONFIG = {
     },
     limits: {
         content: 10000,
-        delay: 2500
+        retries: 3,
+        delay: 20000
     }
 };
 
@@ -129,7 +130,7 @@ const main = async () => {
 
     const summariedData = [];
     for (const company of data) {
-        await new Promise(resolve => setTimeout(resolve, CONFIG.limits.delay)); // Delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2500)); // Delay to avoid rate limiting
 
         console.log(`Processing company: ${company.name}`);
         const text = await company.link.endswith(".pdf") ?
@@ -141,8 +142,11 @@ const main = async () => {
         }
 
 
-        const summary = null;
-        while (summary === null) summary = await analyzeWithGroq(text);
+        let summary = null;
+        for (let i = 0; i < CONFIG.limits.retries && summary === null; i++) {
+            await new Promise(resolve => setTimeout(resolve, CONFIG.limits.delay)); // Delay before retrying
+            summary = await analyzeWithGroq(text);
+        }
 
         summariedData.push({
             name: company.name,
