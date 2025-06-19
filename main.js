@@ -3,28 +3,25 @@ import axios from "axios";
 import PdfParse from "pdf-parse";
 import fs from "fs";
 import { Parser } from "json2csv";
+import YoutubeTranscript from 'youtube-transcript';
 
 const CONFIG = {
     paths: {
         screener: 'https://www.screener.in/concalls/',
         login: 'https://www.screener.in/login/',
         outputFile: 'output.csv',
+        tempPdf: 'test/data/temp.pdf'
     },
     limits: {
         content: 10000,
-        delay: 2500
+        retries: 3,
+        delay: 20000
     }
 };
 
 
-const extractCompanyData = async () => {
-    const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
+const extractCompanyData = async (browser) => {
     const page = await browser.newPage();
-
     await page.goto(CONFIG.paths.login)
     await page.setViewport({ width: 1080, height: 1024 });
 
@@ -42,20 +39,24 @@ const extractCompanyData = async () => {
         return { name: th, link: tdLink };
     }));
 
-    await browser.close();
     return companyData;
 }
 
-const extractPdf = async (link) => {
+const extractPdf = async (link, browser) => {
+    const page = await browser.newPage();
+
     try {
-        const { data } = await axios.get(link, {
-            responseType: 'arraybuffer', timeout: 30000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-                'Accept': 'application/pdf',
-                'Accept-Language': 'en-US,en;q=0.9',
-            }
-        });
+        await page.goto(link, { waitUntil: 'networkidle2', timeout: 60000 });
+
+        const buffer = await page.evaluate(() =>
+            fetch(window.location.href)
+                .then(res => res.arrayBuffer())
+                .then(buf => Array.from(new Uint8Array(buf)))
+        );
+
+        fs.writeFileSync(CONFIG.paths.tempPdf, Buffer.from(buffer));
+        const data = fs.readFileSync(CONFIG.paths.tempPdf);
+
         if (data) {
             const pdf = await PdfParse(data);
             return pdf.text;
@@ -75,6 +76,16 @@ const extractPdf = async (link) => {
     }
 };
 
+const getTranscriptContent = async (link) => {
+    try {
+        const videoId = link.match(/(?:v=|\/)([\w-]{11})/)[1];
+        const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+        return transcript.map(t => t.text).join('\n');
+    } catch (error) {
+        console.error('YouTube error:', error.message);
+        return null;
+    }
+}
 
 async function analyzeWithGroq(content) {
     const prompt = `
@@ -115,21 +126,32 @@ async function analyzeWithGroq(content) {
 }
 
 const main = async () => {
-    const data = await extractCompanyData();
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-http2']
+    });
+
+    const data = await extractCompanyData(browser);
 
     const summariedData = [];
     for (const company of data) {
-        await new Promise(resolve => setTimeout(resolve, CONFIG.limits.delay)); // Delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2500)); // Delay to avoid rate limiting
 
         console.log(`Processing company: ${company.name}`);
-        const text = await extractPdf(company.link);
+        const text = await company.link.endswith(".pdf") ?
+            extractPdf(company.link, browser) : getTranscriptContent(company.link);
 
         if (text.length === 0) {
             console.log(`No text extracted for ${company.name}, skipping...`);
             continue;
         }
 
-        const summary = await analyzeWithGroq(text);
+
+        let summary = null;
+        for (let i = 0; i < CONFIG.limits.retries && summary === null; i++) {
+            await new Promise(resolve => setTimeout(resolve, CONFIG.limits.delay)); // Delay before retrying
+            summary = await analyzeWithGroq(text);
+        }
 
         summariedData.push({
             name: company.name,
@@ -138,6 +160,8 @@ const main = async () => {
 
         if (data.length == 10) break;
     }
+
+    await browser.close();
 
     const fields = ['name', 'QoQRevenue', 'YoYRevenue', 'QoQProfit', 'YoYProfit', 'events', 'prospects'];
     const parser = new Parser({ fields });
