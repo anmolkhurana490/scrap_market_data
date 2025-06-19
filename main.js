@@ -40,11 +40,14 @@ const extractCompanyData = async (page) => {
 
 const extractPdf = async (link, page) => {
     try {
-        await page.goto(link, { waitUntil: 'networkidle2' });
+        await page.goto(link, { waitUntil: 'networkidle2', timeout: 60000 });
 
-        const pdfLink = await page.$eval('a[href$=".pdf"]', el => el.href);
-        const response = await axios.get(pdfLink, { responseType: 'arraybuffer' });
-        const data = Buffer.from(response.data);
+        const buffer = await page.evaluate(() =>
+            fetch(window.location.href)
+                .then(res => res.arrayBuffer())
+                .then(buf => Array.from(new Uint8Array(buf)))
+        );
+        const data = Buffer.from(buffer);
 
         if (data) {
             const pdf = await PdfParse(data);
@@ -102,7 +105,7 @@ async function analyzeWithGroq(content) {
 const main = async () => {
     const browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox']
+        args: ['--no-sandbox', '--disable-http2']
     });
 
     const page = await browser.newPage();
