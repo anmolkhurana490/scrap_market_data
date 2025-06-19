@@ -9,6 +9,7 @@ const CONFIG = {
         screener: 'https://www.screener.in/concalls/',
         login: 'https://www.screener.in/login/',
         outputFile: 'output.csv',
+        tempPdf: 'test/data/temp.pdf'
     },
     limits: {
         content: 10000,
@@ -40,14 +41,16 @@ const extractCompanyData = async (page) => {
 
 const extractPdf = async (link, page) => {
     try {
-        await page.goto(link, { waitUntil: 'networkidle2', timeout: 60000 });
+        await page.goto(link, { waitUntil: 'networkidle2', timeout: 30000 });
 
         const buffer = await page.evaluate(() =>
             fetch(window.location.href)
                 .then(res => res.arrayBuffer())
                 .then(buf => Array.from(new Uint8Array(buf)))
         );
-        const data = Buffer.from(buffer);
+
+        fs.writeFileSync(CONFIG.paths.tempPdf, Buffer.from(buffer));
+        const data = fs.readFileSync(CONFIG.paths.tempPdf);
 
         if (data) {
             const pdf = await PdfParse(data);
