@@ -17,13 +17,7 @@ const CONFIG = {
 };
 
 
-const extractCompanyData = async () => {
-    const browser = await puppeteer.launch({
-        headless: true,
-    });
-
-    const page = await browser.newPage();
-
+const extractCompanyData = async (page) => {
     await page.goto(CONFIG.paths.login)
     await page.setViewport({ width: 1080, height: 1024 });
 
@@ -41,20 +35,17 @@ const extractCompanyData = async () => {
         return { name: th, link: tdLink };
     }));
 
-    await browser.close();
     return companyData;
 }
 
-const extractPdf = async (link) => {
+const extractPdf = async (link, page) => {
     try {
-        const { data } = await axios.get(link, {
-            responseType: 'arraybuffer', timeout: 30000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-                'Accept': 'application/pdf',
-                'Accept-Language': 'en-US,en;q=0.9',
-            }
-        });
+        await page.goto(link, { waitUntil: 'networkidle2' });
+
+        const pdfLink = await page.$eval('a[href$=".pdf"]', el => el.href);
+        const response = await axios.get(pdfLink, { responseType: 'arraybuffer' });
+        const data = Buffer.from(response.data);
+
         if (data) {
             const pdf = await PdfParse(data);
             return pdf.text;
@@ -109,14 +100,20 @@ async function analyzeWithGroq(content) {
 }
 
 const main = async () => {
-    const data = await extractCompanyData();
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox']
+    });
+
+    const page = await browser.newPage();
+    const data = await extractCompanyData(page);
 
     const summariedData = [];
     for (const company of data) {
         await new Promise(resolve => setTimeout(resolve, CONFIG.limits.delay)); // Delay to avoid rate limiting
 
         console.log(`Processing company: ${company.name}`);
-        const text = await extractPdf(company.link);
+        const text = await extractPdf(company.link, page);
 
         if (text.length === 0) {
             console.log(`No text extracted for ${company.name}, skipping...`);
@@ -132,6 +129,8 @@ const main = async () => {
 
         if (data.length == 10) break;
     }
+
+    await browser.close();
 
     const fields = ['name', 'QoQRevenue', 'YoYRevenue', 'QoQProfit', 'YoYProfit', 'events', 'prospects'];
     const parser = new Parser({ fields });
