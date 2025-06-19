@@ -3,6 +3,7 @@ import axios from "axios";
 import PdfParse from "pdf-parse";
 import fs from "fs";
 import { Parser } from "json2csv";
+import YoutubeTranscript from 'youtube-transcript';
 
 const CONFIG = {
     paths: {
@@ -69,6 +70,16 @@ const extractPdf = async (link, browser) => {
     }
 };
 
+const getTranscriptContent = async (link) => {
+    try {
+        const videoId = link.match(/(?:v=|\/)([\w-]{11})/)[1];
+        const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+        return transcript.map(t => t.text).join('\n');
+    } catch (error) {
+        console.error('YouTube error:', error.message);
+        return null;
+    }
+}
 
 async function analyzeWithGroq(content) {
     const prompt = `
@@ -121,14 +132,17 @@ const main = async () => {
         await new Promise(resolve => setTimeout(resolve, CONFIG.limits.delay)); // Delay to avoid rate limiting
 
         console.log(`Processing company: ${company.name}`);
-        const text = await extractPdf(company.link, browser);
+        const text = await company.link.endswith(".pdf") ?
+            extractPdf(company.link, browser) : getTranscriptContent(company.link);
 
         if (text.length === 0) {
             console.log(`No text extracted for ${company.name}, skipping...`);
             continue;
         }
 
-        const summary = await analyzeWithGroq(text);
+
+        const summary = null;
+        while (summary === null) summary = await analyzeWithGroq(text);
 
         summariedData.push({
             name: company.name,
