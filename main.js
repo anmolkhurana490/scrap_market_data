@@ -58,7 +58,7 @@ const extractPdf = async (link, page) => {
             return '';
         }
     } catch (error) {
-        console.error(`Error fetching PDF from ${link}:`, error.message);
+        console.error(`Error fetching PDF from ${link}:`, error);
         return '';
     }
 };
